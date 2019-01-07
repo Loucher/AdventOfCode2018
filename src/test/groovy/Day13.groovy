@@ -15,64 +15,26 @@ class Day13 {
             it.getChars() as List
         }.collect(Collectors.toList())
         List<Cart> carts = extractCarts(map)
-        Point collisionPosition = null
-        while (collisionPosition == null) {
-            carts.forEach { it.advance(map) }
-            collisionPosition = detectCollision(carts)
-        }
-        println "$collisionPosition.x, $collisionPosition.y"
-    }
-
-    static void printMap(List<List<Character>> map, List<Cart> carts) {
-        for (int y = 0; y < map.size(); y++) {
-            List<Character> row = map[y]
-            for (int x = 0; x < row.size(); x++) {
-                Cart cart = getCartByPosition(new Point(x, y), carts)
-                if (cart == null) {
-                    print(row[x] as char)
-                } else {
-                    switch (cart.direction) {
-                        case UP:
-                            print '^'
-                            break
-                        case DOWN:
-                            print 'v'
-                            break
-                        case LEFT:
-                            print '<'
-                            break
-                        case RIGHT:
-                            print '>'
-                            break
+        boolean firstCrashOccured = false
+        while (carts.size() > 1) {
+            def sortedCarts = carts.sort { a, b -> a.position <=> b.position }
+            sortedCarts.any {
+                Point collisionPosition = it.advance(map, carts)
+                if (collisionPosition != null) {
+                    if (!firstCrashOccured) {
+                        println "Part1: $collisionPosition.x,$collisionPosition.y"
+                        firstCrashOccured = true
                     }
+                    carts.removeAll(getCartsByPosition(collisionPosition, carts))
                 }
-
-            }
-            println ""
-        }
-    }
-
-
-    private static Cart getCartByPosition(Point position, List<Cart> carts) {
-        for (Cart cart : carts) {
-            if (cart.position == position) {
-                return cart
             }
         }
-        return null
+        println "Part2: ${carts.get(0).position.x},${carts.get(0).position.y}"
     }
 
-    private static Point detectCollision(List<Cart> carts) {
-        Set<Point> existingPositions = new HashSet<>()
-        for (Cart cart : carts) {
-            if (existingPositions.contains(cart.position)) {
-                return cart.position
-            }
-            existingPositions.add(cart.position)
-        }
-        return null
+    private static List<Cart> getCartsByPosition(Point position, List<Cart> carts) {
+        return carts.findAll { it.position == position }
     }
-
 
     private static List<Cart> extractCarts(List<List<Character>> map) {
         List<Cart> carts = new ArrayList<>()
@@ -120,7 +82,7 @@ class Day13 {
         Point direction
         long turns = 0
 
-        boolean advance(List<List<Character>> map) {
+        Point advance(List<List<Character>> map, List<Cart> carts) {
             position += direction
             switch (map[position.y][position.x]) {
                 case '\\':
@@ -143,12 +105,19 @@ class Day13 {
                 case '|':
                     break
             }
-            return false
+            for (Cart cart : carts) {
+                if (cart == this) {
+                    continue
+                }
+                if (cart.position == this.position) {
+                    return position
+                }
+            }
+            return null
         }
-
     }
 
-    private static class Point {
+    private static class Point implements Comparable<Point> {
         int x
         int y
 
@@ -178,6 +147,11 @@ class Day13 {
             result = x
             result = 31 * result + y
             return result
+        }
+
+        @Override
+        int compareTo(Point o) {
+            y <=> o.y ?: x <=> o.x
         }
     }
 
